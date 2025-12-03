@@ -12,6 +12,8 @@ DB_PASS = os.getenv("DB_PASS")
 def get_connection():
     return psycopg2.connect(host=DB_HOST, dbname=DB_NAME, user=DB_USER, password=DB_PASS)
 
+# ----------------- CRUD DE USUÁRIOS -----------------
+
 @app.route('/users', methods=['GET'])
 def get_users():
     conn = get_connection()
@@ -54,10 +56,9 @@ def delete_user(id):
     conn.close()
     return jsonify({"message": "Usuário deletado com sucesso!"})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
 
 # ----------------- CRUD DE PRODUTOS -----------------
+
 @app.route('/products', methods=['GET'])
 def get_products():
     conn = get_connection()
@@ -105,3 +106,9 @@ def delete_product(id):
     cur.close()
     conn.close()
     return jsonify({"message": "Produto deletado com sucesso!"})
+
+
+# ----------------- MAIN -----------------
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
