@@ -1,7 +1,6 @@
 import json
 from app.main import app
 
-
 def test_root_route():
     client = app.test_client()
     response = client.get("/")
