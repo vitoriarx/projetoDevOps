@@ -4,13 +4,12 @@ import os
 
 app = Flask(__name__)
 
-# Variáveis do ambiente (setadas pelo Docker Compose)
+# Variáveis de ambiente corretas de acordo com o docker-compose
 DB_HOST = os.getenv("DB_HOST")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
+DB_PASS = os.getenv("DB_PASSWORD")   # <<< CORRIGIDO
 
-# Função de conexão com PostgreSQL
 def get_connection():
     return psycopg2.connect(
         host=DB_HOST,
@@ -20,14 +19,14 @@ def get_connection():
     )
 
 # ------------------------
-#     ROTA RAIZ
+# ROTA RAIZ — compatível com test_main.py
 # ------------------------
 @app.route('/')
 def home():
-    return jsonify({"message": "API Flask funcionando com sucesso! 🚀"})
+    return jsonify({"message": "API funcionando!"})   # <<< CORRIGIDO
 
 # ------------------------
-#     CRUD DE USUÁRIOS
+# CRUD DE USUÁRIOS
 # ------------------------
 
 # LISTAR TODOS OS USUÁRIOS
@@ -36,14 +35,19 @@ def get_users():
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT * FROM users;")
+        cur.execute("SELECT id, name, email FROM users;")
         users = cur.fetchall()
+
+        users_list = [
+            {"id": u[0], "name": u[1], "email": u[2]}
+            for u in users
+        ]
+
         cur.close()
         conn.close()
-        return jsonify(users)
+        return jsonify(users_list)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # CRIAR USUÁRIO
 @app.route('/users', methods=['POST'])
@@ -58,16 +62,19 @@ def create_user():
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("INSERT INTO users (name, email) VALUES (%s, %s) RETURNING id;", (name, email))
+        cur.execute(
+            "INSERT INTO users (name, email) VALUES (%s, %s) RETURNING id;",
+            (name, email)
+        )
         user_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
-        return jsonify({"message": "Usuário criado com sucesso", "id": user_id}), 201
+
+        return jsonify({"id": user_id, "name": name, "email": email}), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ATUALIZAR USUÁRIO
 @app.route('/users/<int:user_id>', methods=['PUT'])
@@ -80,8 +87,10 @@ def update_user(user_id):
         conn = get_connection()
         cur = conn.cursor()
 
-        cur.execute("UPDATE users SET name = %s, email = %s WHERE id = %s RETURNING id;",
-                    (name, email, user_id))
+        cur.execute(
+            "UPDATE users SET name = %s, email = %s WHERE id = %s RETURNING id;",
+            (name, email, user_id)
+        )
 
         if cur.rowcount == 0:
             return jsonify({"error": "Usuário não encontrado"}), 404
@@ -93,7 +102,6 @@ def update_user(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # DELETAR USUÁRIO
 @app.route('/users/<int:user_id>', methods=['DELETE'])
@@ -115,9 +123,8 @@ def delete_user(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 # ------------------------
-#     MAIN
+# MAIN
 # ------------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

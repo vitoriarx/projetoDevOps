@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   api:
-    image: $DOCKERHUB_VITORIARX/devops-api:${IMAGE_TAG}
+    image: vitoriarsm/projetodevops-api:${IMAGE_TAG}
     container_name: flask_api
     ports:
       - "5000:5000"

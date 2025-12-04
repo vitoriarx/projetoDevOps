@@ -6,6 +6,7 @@ on:
       - main
 
 jobs:
+
   build-test:
     runs-on: ubuntu-latest
 
@@ -54,6 +55,9 @@ jobs:
           script: |
             cd ${{ secrets.PROJECT_PATH }}
 
+            echo "Atualizando imagem no servidor..."
             docker compose pull
+
+            echo "Recriando containers..."
             docker compose down
             docker compose up -d
