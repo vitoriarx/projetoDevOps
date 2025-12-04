@@ -1,29 +1,28 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: postgres_db
-    env_file: .env
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - mynetwork
-
-  flask_api:
-    image: vitoriarx/flask-crud-api:${IMAGE_TAG}
+  api:
+    image: $DOCKERHUB_VITORIARX/devops-api:${IMAGE_TAG}
     container_name: flask_api
     ports:
       - "5000:5000"
-    env_file: .env
+    environment:
+      - DB_HOST=postgres_db
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=meubanco
     depends_on:
-      - db
-    networks:
-      - mynetwork
+      - postgres
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: meubanco
+    volumes:
+      - postgresdata:/var/lib/postgresql/data
 
 volumes:
-  db_data:
-
-networks:
-  mynetwork:
+  postgresdata:

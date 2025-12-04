@@ -1,34 +1,23 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  app:
-    build: .
+  api:
+    image: projetodevops-api
     container_name: flask_api
     ports:
-      - "5000:5000"
-    env_file:
-      - .env
-    depends_on:
-      - db
-    restart: always
-    # networks:
-    #   - mynetwork
+      - "5000:5000"  # Porta interna do Flask
+    restart: unless-stopped
 
   db:
     image: postgres:15-alpine
     container_name: postgres_db
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    restart: always
-    # networks:
-    #   - mynetwork
+    restart: unless-stopped
 
 volumes:
   db_data:
-
-# networks:
-#   mynetwork:
-#     driver: bridge

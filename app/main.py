@@ -4,111 +4,120 @@ import os
 
 app = Flask(__name__)
 
+# Variáveis do ambiente (setadas pelo Docker Compose)
 DB_HOST = os.getenv("DB_HOST")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 
+# Função de conexão com PostgreSQL
 def get_connection():
-    return psycopg2.connect(host=DB_HOST, dbname=DB_NAME, user=DB_USER, password=DB_PASS)
+    return psycopg2.connect(
+        host=DB_HOST,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
 
-# ----------------- CRUD DE USUÁRIOS -----------------
+# ------------------------
+#     ROTA RAIZ
+# ------------------------
+@app.route('/')
+def home():
+    return jsonify({"message": "API Flask funcionando com sucesso! 🚀"})
 
+# ------------------------
+#     CRUD DE USUÁRIOS
+# ------------------------
+
+# LISTAR TODOS OS USUÁRIOS
 @app.route('/users', methods=['GET'])
 def get_users():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM users;")
-    users = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify(users)
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users;")
+        users = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify(users)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+
+# CRIAR USUÁRIO
 @app.route('/users', methods=['POST'])
-def add_user():
-    data = request.get_json()
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO users (name, email) VALUES (%s, %s);", (data['name'], data['email']))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"message": "Usuário adicionado com sucesso!"})
+def create_user():
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
 
-@app.route('/users/<int:id>', methods=['PUT'])
-def update_user(id):
-    data = request.get_json()
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("UPDATE users SET name=%s, email=%s WHERE id=%s;", (data['name'], data['email'], id))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"message": "Usuário atualizado com sucesso!"})
+    if not name or not email:
+        return jsonify({"error": "Nome e email são obrigatórios"}), 400
 
-@app.route('/users/<int:id>', methods=['DELETE'])
-def delete_user(id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM users WHERE id=%s;", (id,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"message": "Usuário deletado com sucesso!"})
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO users (name, email) VALUES (%s, %s) RETURNING id;", (name, email))
+        user_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"message": "Usuário criado com sucesso", "id": user_id}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
-# ----------------- CRUD DE PRODUTOS -----------------
+# ATUALIZAR USUÁRIO
+@app.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
 
-@app.route('/products', methods=['GET'])
-def get_products():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM products;")
-    products = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify(products)
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
 
-@app.route('/products', methods=['POST'])
-def add_product():
-    data = request.get_json()
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO products (name, price, stock) VALUES (%s, %s, %s);",
-        (data['name'], data['price'], data['stock'])
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"message": "Produto adicionado com sucesso!"})
+        cur.execute("UPDATE users SET name = %s, email = %s WHERE id = %s RETURNING id;",
+                    (name, email, user_id))
 
-@app.route('/products/<int:id>', methods=['PUT'])
-def update_product(id):
-    data = request.get_json()
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "UPDATE products SET name=%s, price=%s, stock=%s WHERE id=%s;",
-        (data['name'], data['price'], data['stock'], id)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"message": "Produto atualizado com sucesso!"})
+        if cur.rowcount == 0:
+            return jsonify({"error": "Usuário não encontrado"}), 404
 
-@app.route('/products/<int:id>', methods=['DELETE'])
-def delete_product(id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM products WHERE id=%s;", (id,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"message": "Produto deletado com sucesso!"})
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"message": "Usuário atualizado com sucesso"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
-# ----------------- MAIN -----------------
+# DELETAR USUÁRIO
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
 
+        cur.execute("DELETE FROM users WHERE id = %s RETURNING id;", (user_id,))
+
+        if cur.rowcount == 0:
+            return jsonify({"error": "Usuário não encontrado"}), 404
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"message": "Usuário deletado com sucesso"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ------------------------
+#     MAIN
+# ------------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
