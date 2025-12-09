@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   api:
-    image: vitoriarsm/projetodevops-api:${IMAGE_TAG}
+    image: vitoriarx/projetodevops-api:${IMAGE_TAG}
     container_name: flask_api
     ports:
       - "5000:5000"

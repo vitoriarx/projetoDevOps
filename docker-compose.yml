@@ -1,23 +1,35 @@
 version: "3.9"
 
 services:
-  api:
-    image: projetodevops-api
-    container_name: flask_api
-    ports:
-      - "5000:5000"  # Porta interna do Flask
-    restart: unless-stopped
-
-  db:
+  postgres_db:
     image: postgres:15-alpine
     container_name: postgres_db
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: dbname
+      POSTGRES_DB: mydb
     volumes:
-      - db_data:/var/lib/postgresql/data
-    restart: unless-stopped
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - mynetwork
+
+  flask_api:
+    image: vitoriarx/projetodevops-api:latest
+    container_name: flask_api
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: postgres_db
+      DB_NAME: mydb
+      DB_USER: user
+      DB_PASS: password
+    depends_on:
+      - postgres_db
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
 
 volumes:
-  db_data:
+  pgdata:
