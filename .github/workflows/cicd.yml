@@ -61,15 +61,18 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            echo "📌 Entrando na pasta do projeto..."
             cd ${{ secrets.PROJECT_PATH }}
 
-            echo "Carregando variáveis..."
+            echo "📌 Carregando variáveis do ambiente..."
             export IMAGE_TAG=latest
             export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
-            echo "Atualizando imagem..."
+            echo "📌 Atualizando imagem do Docker Hub..."
             docker compose -f docker-compose.prod.yml pull
 
-            echo "Recriando containers..."
+            echo "📌 Subindo containers atualizados..."
             docker compose -f docker-compose.prod.yml down
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "🚀 Deploy finalizado com sucesso!"
