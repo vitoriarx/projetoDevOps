@@ -1,252 +1,137 @@
-# Docker CRUD Flask + PostgreSQL
+# 🚀 Projeto MultiContainer — CI/CD com GitHub Actions, Docker Hub e VPS
 
-Um projeto de exemplo de **API CRUD em Python com Flask** utilizando **PostgreSQL** em ambiente **multi-container com Docker Compose**.  
+![CI/CD Pipeline](https://github.com/vitoriarx/projetoMultiContainer/actions/workflows/cicd.yml/badge.svg)
 
-O projeto inclui:
+Este repositório contém um pipeline completo de **Integração Contínua (CI)** e **Entrega Contínua (CD)** utilizando:
 
-- CRUD de **usuários** e **produtos**.
-- Persistência de dados via **volumes**.
-- Configuração de **variáveis de ambiente**.
-- Usuário de aplicação dedicado (não root) para segurança.
-- Estrutura modular e documentação completa.
+- **GitHub Actions**
+- **Docker Hub**
+- **Docker Buildx**
+- **Docker Compose (produção & desenvolvimento)**
+- **Deploy automático na VPS via SSH**
 
----
+O objetivo é garantir que qualquer push para a branch `main` resulte em:
 
-## 🔧 Pré-requisitos
-
-Antes de começar, você precisa ter instalado:
-
-- [Docker](https://www.docker.com/get-started)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-- [Git](https://git-scm.com/)
+1. Execução automática de testes 🔍  
+2. Build da imagem Docker da API 🐳  
+3. Publicação da imagem no Docker Hub 📦  
+4. Atualização automática dos containers na VPS 🚀  
 
 ---
 
-## 📁 Estrutura do Projeto
-```bash
-docker-crud/
+# 📁 Estrutura do Projeto
+
+```bash 
+projetoMultiContainer/
 │
-├── app/
-│ ├── main.py # Código da API Flask
-│ ├── requirements.txt # Dependências Python
-│ └── Dockerfile # Dockerfile da aplicação
+├── app/ # Código da API Python
+│ ├── main.py
+│ ├── requirements.txt
+│ └── Dockerfile
 │
-├── docker-compose.yml # Configuração dos containers
-├── .env # Variáveis de ambiente
-├── init.sql # Script de inicialização do banco
-└── README.md
+├── docker-compose.yml # Ambiente local
+├── docker-compose.prod.yml # Ambiente de produção (VPS)
+│
+└── .github/workflows/cicd.yml # Pipeline completo de CI/CD
 ```
+
 
 ---
 
-## 🛠 Configuração do Banco de Dados
+# ⚙️ Pipeline CI/CD — Visão Geral
 
-Arquivo `.env` com variáveis sensíveis:
+O arquivo `cicd.yml` executa 2 jobs principais:
 
-```env
-POSTGRES_DB=mydb
-POSTGRES_USER=appuser
-POSTGRES_PASSWORD=app123
-DB_HOST=db
-DB_NAME=mydb
-DB_USER=appuser
-DB_PASS=app123
-Script init.sql para criar tabelas:
-```
+---
+
+## 🔵 1. BUILD & TEST
+
+**O que ele faz?**
+
+- Faz checkout do repositório
+- Instala dependências Python
+- Executa testes automáticos com PyTest
+- Faz login no Docker Hub
+- Faz build da imagem Docker da API
+- Publica no Docker Hub com duas tags:
+  - SHA da versão: `vitoriarx/projetodevops-api:<commit>`
+  - Latest: `vitoriarx/projetodevops-api:latest`
+
+---
+
+## 🟢 2. DEPLOY AUTOMÁTICO (CD)
+
+Depois da etapa anterior passar, o GitHub Actions:
+
+- Acessa a VPS via SSH  
+- Entra na pasta do projeto  
+- Atualiza a imagem do Docker Hub  
+- Recria os containers com `docker-compose.prod.yml`  
+- Sobe o ambiente em produção  
+
+Tudo isso sem você precisar fazer nada manualmente. 🎯
+
+---
+
+# 🔧 Variáveis de Ambiente Necessárias (GitHub Secrets)
+
+| Nome | Descrição |
+|------|-----------|
+| **DOCKERHUB_USERNAME** | Seu usuário do Docker Hub |
+| **DOCKERHUB_TOKEN** | Token de acesso (não senha) |
+| **SSH_HOST** | IP da VPS |
+| **SSH_USER** | Usuário (ex: root) |
+| **SSH_KEY** | Chave privada da VPS |
+| **PROJECT_PATH** | Caminho onde está o projeto na VPS |
+| **DB_PASSWORD** | Senha usada no docker-compose.prod.yml |
+
+---
+
+# 🐳 Rodando o projeto localmente
+
+### 🔹 Subir containers no ambiente local:
 
 ```bash
--- Usuários
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    email VARCHAR(100)
-);
+docker compose up --build
+```
+🔹 Parar containers:
+```bash
+docker compose down
 ```
 
-```bash
--- Produtos
-CREATE TABLE IF NOT EXISTS products (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    price DECIMAL(10,2),
-    stock INT
-);
-```
+🛠 Arquivo docker-compose.prod.yml (produção)
 
-🐳 Docker Compose
-Exemplo do docker-compose.yml:
+A versão de produção faz pull da imagem direto do Docker Hub: 
 
 ```bash
-version: '3.8'
-
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: postgres_db
-    env_file: .env
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - mynetwork
-
-  flask_api:
-    build:
-      context: ./app
-    container_name: flask_api
+  api:
+    image: vitoriarx/projetodevops-api:latest
+    restart: always
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD}
     ports:
-      - "5000:5000"
-    env_file: .env
-    depends_on:
-      - db
-    networks:
-      - mynetwork
-
-volumes:
-  db_data:
-
-networks:
-  mynetwork:
+      - "8000:8000"
 ```
 
-🚀 Como Executar o Projeto
-Clonar o repositório:
+🚀 Deploy automático na VPS
+
+Qualquer push para main dispara o pipeline.
+
+Ao chegar no job deploy, ele executa na VPS: 
 
 ```bash
-git clone https://github.com/vitoriarx/ambienteMultiContainer
-cd docker-crud
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml up -d --remove-orphans
 ```
+🧪 Testes
 
-Subir os containers com Docker Compose:
+Para rodar os testes localmente:
 ```bash
-docker-compose up --build
-A API estará disponível em: http://localhost:5000
-```
-O PostgreSQL estará rodando no container postgres_db.
-
-🔹 Testar os Endpoints (via curl)
-Usuários
-Listar usuários:
-```bash
-curl http://localhost:5000/users
+pytest
 ```
 
-Adicionar usuário:
-```bash
-curl -X POST http://localhost:5000/users \
--H "Content-Type: application/json" \
--d "{\"name\":\"Vitória Melo\",\"email\":\"vitoria@email.com\"}"
-```
+📌 Badge do pipeline: 
 
-Atualizar usuário:
-```bash
-curl -X PUT http://localhost:5000/users/1 \
--H "Content-Type: application/json" \
--d "{\"name\":\"Vitória R. Melo\",\"email\":\"vitoria@email.com\"}"
-```
-
-Deletar usuário:
-
-```bash
-curl -X DELETE http://localhost:5000/users/1
-```
-
-Produtos
-Listar produtos:
-
-```bash
-curl http://localhost:5000/products
-
-```
-
-```bash
-Adicionar produto:
-
-curl -X POST http://localhost:5000/products \
--H "Content-Type: application/json" \
--d "{\"name\":\"Camiseta\",\"price\":49.90,\"stock\":10}"
-```
-
-Atualizar produto:
-
-
-```bash
-curl -X PUT http://localhost:5000/products/1 \
--H "Content-Type: application/json" \
--d "{\"name\":\"Camiseta Premium\",\"price\":59.90,\"stock\":15}"
-
-```
-
-Deletar produto:
-
-```bash
-curl -X DELETE http://localhost:5000/products/1
-
-```
-
-🔒 Segurança
-Usuário de aplicação (appuser) configurado no .env.
-
-Banco não roda operações críticas com root.
-
-Variáveis sensíveis não estão hardcoded no código.
-
-💾 Persistência de Dados
-Dados do banco persistem no volume Docker db_data.
-
-Mesmo que os containers sejam removidos, os dados permanecem.
-
-📌 Subir o Projeto para o GitHub
-Inicializar repositório local:
-
-```bash
-git init
-git add .
-git commit -m "Projeto Docker CRUD Flask + PostgreSQL"
-Criar repositório no GitHub e copiar a URL (https://github.com/vitoriarx/ambienteMultiContainer)
-
-```
-Adicionar remoto e enviar:
-
-```bash
-git remote add origin https://github.com/vitoriarx/ambienteMultiContainer
-git branch -M main
-git push -u origin main
-```
-
-# 🐳 Arquitetura do Projeto - Flask + PostgreSQL (Docker)
-
-                 ┌──────────────────────────────┐
-                 │        🧠 Docker Desktop     │
-                 │   (Ambiente de Containers)   │
-                 └──────────────────────────────┘
-                                │
-                                ▼
-       ┌────────────────────────────────────────────────┐
-       │               🌐 Docker Network               │
-       │             (mynetwork interna)                │
-       │                                                │
-       │   ┌────────────────────┐       ┌──────────────────────┐
-       │   │  ⚙️ Container       │       │ 🧩 Container       │
-       │   │  flask_api          │◀────▶│ postgres_db         │
-       │   │--------------------│       │----------------------│
-       │   │  - Flask (Python)  │       │  - PostgreSQL        │
-       │   │  - SQLAlchemy      │       │  - Porta 5432        │
-       │   │  - Porta 5000      │       │  - Usuário: user     │
-       │   │                    │       │  - Banco: product_db │
-       │   └────────────────────┘       └──────────────────────┘
-       │             ▲                             │
-       │             │                             ▼
-       │             │                    ┌────────────────────── ┐
-       │             │                    │ 💾 Volume Persistente│
-       │             │                    │ (db_data)             │
-       │             │                    │ Armazena dados mesmo  │
-       │             │                    │ após reiniciar        │
-       │             │                    └────────────────────── ┘
-       └────────────────────────────────────────────────┘
-                                │
-                                ▼
-                 ┌──────────────────────────────┐
-                 │ 💻 Usuário / Navegador       │
-                 │ http://localhost:5000        │
-                 └──────────────────────────────┘
+![Build Status](https://img.shields.io/github/actions/workflow/status/vitoriarx/projetoMultiContainer/cicd.yml?branch=main)
